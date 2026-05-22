@@ -346,6 +346,12 @@ importers:
 
   packages/queue:
     dependencies:
+      '@assessment-ai/database':
+        specifier: workspace:*
+        version: link:../database
+      '@assessment-ai/logger':
+        specifier: workspace:*
+        version: link:../logger
       '@assessment-ai/redis':
         specifier: workspace:*
         version: link:../redis

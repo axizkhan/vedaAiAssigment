@@ -8,6 +8,7 @@ import { authRouter } from './modules/auth';
 import { assignmentRouter } from './modules/assignments';
 import { uploadsRouter } from './modules/uploads';
 import { uploadService } from './modules/uploads/upload.service';
+import { generationRouter } from './modules/generation';
 
 const app = express();
 const port = apiEnv.PORT;
@@ -53,6 +54,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/assignments', assignmentRouter);
 app.use('/api/v1/assignments', uploadsRouter);
+app.use('/api/v1/generate', generationRouter);
 
 app.use(errorMiddleware);
 

@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq';
-import { redis } from '@assessment-ai/redis';
-
-export const generationQueue = new Queue('generation', { connection: redis });
+export * from './queues/generation.queue';
+export * from './queues/dead-letter.queue';
+export * from './workers/generation.worker';
+export * from './workers/dead-letter.worker';

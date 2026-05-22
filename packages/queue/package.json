@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "bullmq": "^5.5.0",
-    "@assessment-ai/redis": "workspace:*"
+    "@assessment-ai/redis": "workspace:*",
+    "@assessment-ai/logger": "workspace:*",
+    "@assessment-ai/database": "workspace:*"
   },
   "devDependencies": {
     "@assessment-ai/tsconfig": "workspace:*",
