@@ -2,6 +2,7 @@ import { User } from '@assessment-ai/database';
 import { authTokens } from './auth.tokens';
 import { authSession } from './auth.session';
 import { logger } from '@assessment-ai/logger';
+import { socketManager } from '../../socket/socket.manager';
 
 export const authService = {
   login: async (email: string, password: string) => {
@@ -41,9 +42,11 @@ export const authService = {
     try {
       const decoded = authTokens.verifyRefreshToken(token);
       await authSession.revokeSession(decoded.sub, token);
+      socketManager.disconnectSessionSockets(decoded.sessionId);
     } catch(e) { }
   },
   logoutAll: async (userId: string) => {
     await authSession.revokeAllSessions(userId);
+    socketManager.disconnectUserSockets(userId);
   }
 };
