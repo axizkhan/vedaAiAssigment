@@ -344,6 +344,25 @@ importers:
         specifier: ^5.4.3
         version: 5.9.3
 
+  packages/pdf:
+    dependencies:
+      handlebars:
+        specifier: ^4.7.8
+        version: 4.7.9
+      puppeteer:
+        specifier: ^22.0.0
+        version: 22.15.0(typescript@5.9.3)
+    devDependencies:
+      '@assessment-ai/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
+      typescript:
+        specifier: ^5.4.3
+        version: 5.9.3
+
   packages/queue:
     dependencies:
       '@assessment-ai/database':

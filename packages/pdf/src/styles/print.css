@@ -1,0 +1,7 @@
+@page {
+  size: A4;
+  margin: 20mm 25mm;
+}
+.avoid-break {
+  break-inside: avoid;
+}

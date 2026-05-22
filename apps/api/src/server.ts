@@ -9,6 +9,9 @@ import { assignmentRouter } from './modules/assignments';
 import { uploadsRouter } from './modules/uploads';
 import { uploadService } from './modules/uploads/upload.service';
 import { generationRouter } from './modules/generation';
+import { pdfRouter } from './modules/pdf';
+import { healthRouter } from './modules/system/health/health.routes';
+import { adminRouter } from './modules/system/admin/admin.routes';
 
 const app = express();
 const port = apiEnv.PORT;
@@ -44,17 +47,14 @@ try {
 app.use(express.json());
 app.use(traceIdMiddleware);
 
-app.get('/health', (req, res) => {
-  return sendSuccessResponse(res, {
-    data: { status: 'ok' },
-    traceId: req.traceId,
-  });
-});
+app.use('/health', healthRouter);
 
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/assignments', assignmentRouter);
 app.use('/api/v1/assignments', uploadsRouter);
 app.use('/api/v1/generate', generationRouter);
+app.use('/api/v1/pdf', pdfRouter);
+app.use('/api/v1/admin', adminRouter);
 
 app.use(errorMiddleware);
 
