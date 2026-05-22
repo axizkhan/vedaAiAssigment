@@ -1,17 +1,31 @@
-import { SANITIZER_CONSTANTS } from './sanitizer.constants';
+import { findSafeTruncationIndex } from './semantic-boundary';
+import { tokensToChars } from './token-estimator';
+import { ContextTruncationError } from './context.errors';
 
-export const truncateSafely = (text: string): { truncated: string; applied: boolean } => {
-  if (text.length <= SANITIZER_CONSTANTS.MAX_OUTPUT_LENGTH) {
-    return { truncated: text, applied: false };
+export const safelyTruncateContext = (
+  text: string,
+  availableTokens: number
+): { text: string; truncated: boolean } => {
+  if (!text) return { text: '', truncated: false };
+
+  // Calculate the raw character limit based on token heuristic
+  const maxCharsAllowed = tokensToChars(availableTokens);
+
+  if (text.length <= maxCharsAllowed) {
+    return { text, truncated: false };
   }
 
-  // Use Array.from to correctly slice surrogate pairs and emojis
-  const characters = Array.from(text);
-  
-  if (characters.length <= SANITIZER_CONSTANTS.MAX_OUTPUT_LENGTH) {
-    return { truncated: text, applied: false };
+  // Find a semantic safe point to slice
+  const safeIndex = findSafeTruncationIndex(text, maxCharsAllowed);
+
+  if (safeIndex <= 0) {
+    throw new ContextTruncationError('Could not find a safe semantic boundary to truncate the context');
   }
 
-  const truncated = characters.slice(0, SANITIZER_CONSTANTS.MAX_OUTPUT_LENGTH).join('');
-  return { truncated, applied: true };
+  const truncatedText = text.substring(0, safeIndex).trim() + '\\n\\n[CONTENT TRUNCATED DUE TO LENGTH]';
+
+  return {
+    text: truncatedText,
+    truncated: true
+  };
 };

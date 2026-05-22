@@ -1,12 +1,18 @@
 import { Queue } from 'bullmq';
-import { redis } from '@assessment-ai/redis';
+import { redisConnection } from '../redis.connection';
+import { PDFJobPayload } from '../queue.types';
+import { createFixedRetry } from '../utils/retry-policy';
 
-export const pdfQueue = new Queue('pdf', {
-  connection: redis,
+export const pdfQueue = new Queue<PDFJobPayload>('pdf', {
+  connection: redisConnection,
   defaultJobOptions: {
     attempts: 2,
-    backoff: { type: 'fixed', delay: 3000 },
-    removeOnComplete: true,
-    removeOnFail: true
+    backoff: createFixedRetry(3000),
+    removeOnComplete: {
+      count: 100
+    },
+    removeOnFail: {
+      count: 500
+    }
   }
 });

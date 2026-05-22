@@ -1,12 +1,18 @@
 import { Queue } from 'bullmq';
-import { redis } from '@assessment-ai/redis';
+import { redisConnection } from '../redis.connection';
+import { GenerationJobPayload } from '../queue.types';
+import { createExponentialRetry } from '../utils/retry-policy';
 
-export const generationQueue = new Queue('generation', {
-  connection: redis,
+export const generationQueue = new Queue<GenerationJobPayload>('generation', {
+  connection: redisConnection,
   defaultJobOptions: {
     attempts: 3,
-    backoff: { type: 'exponential', delay: 1000 },
-    removeOnComplete: true,
-    removeOnFail: true
+    backoff: createExponentialRetry(5000),
+    removeOnComplete: {
+      count: 100 // Prevent Redis memory explosion
+    },
+    removeOnFail: {
+      count: 500 // Retain failures longer for forensic debugging
+    }
   }
 });
