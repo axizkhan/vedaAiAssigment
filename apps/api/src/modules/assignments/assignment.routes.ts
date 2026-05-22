@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware } from '../../middleware/auth.middleware';
+import { authenticate } from '../../middleware/auth.middleware';
 import { asyncHandler } from '../../middleware/error.middleware';
 import {
   createAssignmentController,
@@ -13,7 +13,7 @@ import { validateAssignmentBody, validateAssignmentParams, validateAssignmentQue
 
 export const assignmentRouter: Router = Router();
 
-assignmentRouter.use(authMiddleware);
+assignmentRouter.use(authenticate);
 
 assignmentRouter.post('/', validateAssignmentBody(createAssignmentSchema), asyncHandler(createAssignmentController));
 assignmentRouter.get('/', validateAssignmentQuery(assignmentListQuerySchema), asyncHandler(listAssignmentsController));

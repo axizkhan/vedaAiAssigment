@@ -1,13 +1,15 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../middleware/error.middleware';
-import { optionalAuthMiddleware } from '../../middleware/optional-auth.middleware';
-import { loginController, logoutController, refreshController, registerController } from './auth.controller';
-import { loginSchema, registerSchema } from './auth.schemas';
-import { validateBody } from './auth.validators';
+import { authenticate } from '../../middleware/auth.middleware';
+import { loginController, refreshController, logoutController, logoutAllController } from './auth.controller';
+import cookieParser from 'cookie-parser';
 
-export const authRouter: Router = Router();
+export const authRouter = Router();
+authRouter.use(cookieParser());
 
-authRouter.post('/register', validateBody(registerSchema), asyncHandler(registerController));
-authRouter.post('/login', validateBody(loginSchema), asyncHandler(loginController));
+authRouter.post('/login', asyncHandler(loginController));
 authRouter.post('/refresh', asyncHandler(refreshController));
-authRouter.post('/logout', optionalAuthMiddleware, asyncHandler(logoutController));
+authRouter.post('/logout', asyncHandler(logoutController));
+authRouter.post('/logout-all', authenticate, asyncHandler(logoutAllController));
+
+export default authRouter;

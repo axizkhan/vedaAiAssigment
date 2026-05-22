@@ -1,91 +1,49 @@
-import { EMAIL_ALREADY_EXISTS, UserAuthService, UserRole } from '@assessment-ai/database';
-import { comparePassword, hashPassword } from '@assessment-ai/database';
-import { DuplicateResourceError, InvalidCredentialsError, InvalidTokenError } from '../../common/errors';
-import { AuthAudit } from './auth.audit';
-import { mapUserToAuthUser } from './auth.mapper';
-import { createSessionPayload, invalidateRefreshToken, issueTokenPair, rotateRefreshToken, storeRefreshToken } from './auth.session';
-import { verifyRefreshToken } from './auth.tokens';
-import { AuthResponse, AuthTraceContext, LoginInput, RefreshInput, RefreshResponse, RegisterInput } from './auth.types';
-import { normalizeEmail } from './auth.utils';
+import { User } from '@assessment-ai/database';
+import { authTokens } from './auth.tokens';
+import { authSession } from './auth.session';
+import { logger } from '@assessment-ai/logger';
 
-export class AuthService {
-  async register(input: RegisterInput, trace?: AuthTraceContext): Promise<AuthResponse> {
-    const email = normalizeEmail(input.email);
-    const existing = await UserAuthService.findByEmail(email);
-    if (existing) throw new DuplicateResourceError('Email is already registered');
-
+export const authService = {
+  login: async (email: string, password: string) => {
+    const user = await User.findOne({ email });
+    if (!user || !(await user.comparePassword(password))) {
+      throw new Error('UNAUTHORIZED');
+    }
+    const payload = { sub: user.id, role: user.role, email: user.email };
+    const accessToken = authTokens.generateAccessToken(payload);
+    const refreshToken = authTokens.generateRefreshToken(payload);
+    await authSession.createSession(user.id, refreshToken);
+    logger.info('User logged in', { userId: user.id });
+    return { user: { id: user.id, email: user.email, role: user.role }, accessToken, refreshToken };
+  },
+  refresh: async (oldToken: string) => {
     try {
-      const passwordHash = await hashPassword(input.password);
-      const user = await UserAuthService.createUser({
-        email,
-        passwordHash,
-        name: input.name.trim(),
-        role: UserRole.TEACHER,
-        refreshTokens: [],
-        dailyGenerationCount: 0,
-        lastGenerationReset: new Date(),
-      });
+      const decoded = authTokens.verifyRefreshToken(oldToken);
+      const isValid = await authSession.validateSession(decoded.sub, oldToken);
+      if (!isValid) throw new Error('UNAUTHORIZED');
+      
+      const user = await User.findById(decoded.sub);
+      if (!user) throw new Error('UNAUTHORIZED');
 
-      const authUser = mapUserToAuthUser(user);
-      const session = createSessionPayload({ id: authUser.id, email: authUser.email, role: authUser.role });
-      const tokens = await issueTokenPair(session);
-      await storeRefreshToken(authUser.id, tokens.refreshToken);
-      AuthAudit.registration(authUser.id, trace);
-
-      return { user: authUser, ...tokens };
-    } catch (error) {
-      if (error instanceof EMAIL_ALREADY_EXISTS) throw new DuplicateResourceError('Email is already registered');
-      throw error;
+      await authSession.revokeSession(decoded.sub, oldToken);
+      
+      const payload = { sub: user.id, role: user.role, email: user.email };
+      const accessToken = authTokens.generateAccessToken(payload);
+      const newRefreshToken = authTokens.generateRefreshToken(payload);
+      
+      await authSession.createSession(user.id, newRefreshToken);
+      return { user: { id: user.id, email: user.email, role: user.role }, accessToken, newRefreshToken };
+    } catch (e) {
+      throw new Error('UNAUTHORIZED');
     }
-  }
-
-  async login(input: LoginInput, trace?: AuthTraceContext): Promise<AuthResponse> {
-    const email = normalizeEmail(input.email);
-    const user = await UserAuthService.findByEmailWithPassword(email);
-
-    if (!user) {
-      AuthAudit.failedLogin(email, trace);
-      throw new InvalidCredentialsError();
-    }
-
-    const validPassword = await comparePassword(input.password, user.passwordHash);
-    if (!validPassword) {
-      AuthAudit.failedLogin(email, trace);
-      throw new InvalidCredentialsError();
-    }
-
-    const authUser = mapUserToAuthUser(user);
-    const session = createSessionPayload({ id: authUser.id, email: authUser.email, role: authUser.role });
-    const tokens = await issueTokenPair(session);
-    await storeRefreshToken(authUser.id, tokens.refreshToken);
-    AuthAudit.login(authUser.id, trace);
-
-    return { user: authUser, ...tokens };
-  }
-
-  async refresh(input: RefreshInput, trace?: AuthTraceContext): Promise<RefreshResponse> {
+  },
+  logout: async (token: string) => {
     try {
-      const payload = verifyRefreshToken(input.refreshToken);
-      const tokens = await rotateRefreshToken(payload, input.refreshToken, trace);
-      AuthAudit.refresh(payload.sub, trace);
-      return tokens;
-    } catch (error) {
-      const userId = error instanceof Error ? undefined : undefined;
-      AuthAudit.refreshFailed(userId, 'invalid_refresh_token', trace);
-      throw new InvalidTokenError();
-    }
+      const decoded = authTokens.verifyRefreshToken(token);
+      await authSession.revokeSession(decoded.sub, token);
+    } catch(e) { }
+  },
+  logoutAll: async (userId: string) => {
+    await authSession.revokeAllSessions(userId);
   }
-
-  async logout(input: RefreshInput, userId?: string, trace?: AuthTraceContext): Promise<void> {
-    try {
-      const payload = verifyRefreshToken(input.refreshToken);
-      await invalidateRefreshToken(payload.sub, input.refreshToken);
-      AuthAudit.logout(payload.sub, trace);
-      return;
-    } catch {
-      if (userId) AuthAudit.logout(userId, trace);
-    }
-  }
-}
-
-export const authService = new AuthService();
+};

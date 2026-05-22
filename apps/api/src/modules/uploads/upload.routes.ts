@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authMiddleware } from "../../middleware/auth.middleware";
+import { authenticate } from "../../middleware/auth.middleware";
 import { asyncHandler } from "../../middleware/error.middleware";
 import {
   uploadMulter,
@@ -31,7 +31,7 @@ export const uploadsRouter: Router = Router();
  */
 uploadsRouter.post(
   "/:id/upload",
-  authMiddleware,
+  authenticate,
   validateAssignmentIdMiddleware,
   uploadMulter.single("file"),
   handleMulterError,

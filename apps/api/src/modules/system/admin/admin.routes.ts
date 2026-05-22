@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { authMiddleware } from '../../../middleware/auth.middleware';
+import { authenticate } from '../../../middleware/auth.middleware';
 import { adminGuard } from './admin.guard';
 import { bullBoardRouter } from './admin.queue';
 
 export const adminRouter = Router();
 
-adminRouter.use('/queues', authMiddleware, adminGuard, bullBoardRouter);
+adminRouter.use('/queues', authenticate, adminGuard, bullBoardRouter);
 
 export default adminRouter;
