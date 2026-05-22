@@ -1,6 +1,7 @@
 import { AssignmentRepository } from '../repositories/assignment.repository';
 import { AssignmentStatusService } from './assignment-status.service';
 import { AssignmentStatus } from '../types/assignment.types';
+import { AssignmentAuditService } from './assignment-audit.service';
 
 export class AssignmentGenerationService {
   static async lockForGeneration(assignmentId: string, jobId: string): Promise<boolean> {
@@ -10,6 +11,10 @@ export class AssignmentGenerationService {
     doc.markGenerationStarted(jobId);
     await doc.save();
     await AssignmentStatusService.transitionStatus(assignmentId, AssignmentStatus.GENERATING, jobId);
+    await AssignmentAuditService.recordGenerationTriggered(assignmentId, {
+      jobId,
+      promptVersion: doc.promptVersion,
+    }, { jobId }, doc.createdBy);
     return true;
   }
 
@@ -19,5 +24,8 @@ export class AssignmentGenerationService {
 
   static async markFailed(assignmentId: string, reason?: string): Promise<void> {
     await AssignmentStatusService.transitionStatus(assignmentId, AssignmentStatus.FAILED);
+    await AssignmentAuditService.recordGenerationFailed(assignmentId, {
+      errorMessage: reason,
+    });
   }
 }

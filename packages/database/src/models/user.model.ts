@@ -50,6 +50,7 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     timestamps: true,
     versionKey: false,
     strict: true,
+    minimize: false,
     collection: USER_COLLECTION_NAME,
     toJSON: {
       transform: function (doc, ret) {
@@ -68,7 +69,6 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
   }
 );
 
-userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1 });
 userSchema.index({ createdAt: -1 });
 

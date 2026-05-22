@@ -7,3 +7,7 @@ export * from './types';
 export * from './constants';
 export * from './validators/assignment.validator';
 export * from './validators/assignment-query.validator';
+export * from './validators/generated-paper.validator';
+export * from './validators/paper-version.validator';
+export * from './validators/assignment-event.validator';
+export * from './seed';

@@ -2,6 +2,7 @@ import { Assignment } from '../models/assignment.model';
 import { IAssignment, AssignmentDocument, CreateAssignmentInput, UpdateAssignmentInput, AssignmentStatus } from '../types/assignment.types';
 import { AssignmentFilters, PaginatedAssignments } from '../types/assignment-query.types';
 import { Types, FilterQuery } from 'mongoose';
+import { AssignmentAuditService } from '../services/assignment-audit.service';
 
 export class AssignmentRepository {
   static async createAssignment(userId: string, data: CreateAssignmentInput): Promise<AssignmentDocument> {
@@ -9,7 +10,14 @@ export class AssignmentRepository {
       ...data,
       createdBy: new Types.ObjectId(userId)
     });
-    return assignment.save();
+    const saved = await assignment.save();
+    await AssignmentAuditService.recordAssignmentCreated(saved._id, userId, {
+      subject: saved.subject,
+      totalQuestions: saved.totalQuestions,
+      totalMarks: saved.totalMarks,
+      promptVersion: saved.promptVersion,
+    });
+    return saved;
   }
 
   static async findById(id: string, userId: string): Promise<IAssignment | null> {
@@ -21,11 +29,20 @@ export class AssignmentRepository {
   }
 
   static async updateAssignment(id: string, userId: string, data: UpdateAssignmentInput): Promise<IAssignment | null> {
-    return Assignment.findOneAndUpdate(
+    const updated = await (Assignment.findOneAndUpdate(
       { _id: id, createdBy: userId, status: { $in: [AssignmentStatus.DRAFT, AssignmentStatus.FAILED] } },
       { $set: data },
       { new: true, lean: true }
-    ).exec() as unknown as Promise<IAssignment | null>;
+    ).exec() as unknown as Promise<IAssignment | null>);
+
+    if (updated) {
+      await AssignmentAuditService.recordAssignmentUpdated(id, userId, {
+        changedFields: Object.keys(data),
+        status: updated.status,
+      });
+    }
+
+    return updated;
   }
 
   static async deleteAssignment(id: string, userId: string): Promise<boolean> {

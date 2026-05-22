@@ -2,6 +2,7 @@ import { AssignmentRepository } from '../repositories/assignment.repository';
 import { sanitizeText } from '../utils/assignment-sanitizer';
 import { estimateTokens } from '../utils/assignment-token-estimator';
 import { MAX_EXTRACTED_TEXT_CHARS } from '../constants/assignment.constants';
+import { AssignmentAuditService } from './assignment-audit.service';
 
 export class AssignmentUploadService {
   static async attachFile(assignmentId: string, userId: string, s3Key: string, rawText: string) {
@@ -10,6 +11,13 @@ export class AssignmentUploadService {
       throw new Error(`Text exceeds max characters (${MAX_EXTRACTED_TEXT_CHARS})`);
     }
     const tokens = estimateTokens(sanitized);
-    return AssignmentRepository.attachUploadedFile(assignmentId, userId, s3Key, sanitized, tokens);
+    const assignment = await AssignmentRepository.attachUploadedFile(assignmentId, userId, s3Key, sanitized, tokens);
+    if (assignment) {
+      await AssignmentAuditService.recordFileUploaded(assignmentId, userId, {
+        s3ObjectKey: s3Key,
+        tokenCount: tokens,
+      });
+    }
+    return assignment;
   }
 }

@@ -1,6 +1,7 @@
 import { User } from '../models/user.model';
 import { IUser, SafeUser, UserDocument } from '../types/user.types';
 import { MAX_REFRESH_TOKENS } from '../constants/user.constants';
+import { UserRole } from '../types/user.types';
 
 export class EMAIL_ALREADY_EXISTS extends Error {
   constructor(email: string) {
@@ -25,6 +26,10 @@ export class UserRepository {
 
   static async findByEmail(email: string): Promise<SafeUser | null> {
     return User.findOne({ email }).lean().exec() as unknown as Promise<SafeUser | null>;
+  }
+
+  static async findFirstAdmin(): Promise<SafeUser | null> {
+    return User.findOne({ role: UserRole.ADMIN }).sort({ createdAt: 1 }).lean().exec() as unknown as Promise<SafeUser | null>;
   }
 
   static async findById(id: string): Promise<SafeUser | null> {
@@ -53,6 +58,16 @@ export class UserRepository {
     );
   }
 
+  static async replaceRefreshToken(userId: string, oldToken: string, newToken: string): Promise<boolean> {
+    const result = await User.updateOne(
+      { _id: userId, refreshTokens: oldToken },
+      {
+        $set: { 'refreshTokens.$': newToken },
+      }
+    );
+    return result.modifiedCount === 1;
+  }
+
   static async removeRefreshToken(userId: string, token: string): Promise<void> {
     await User.updateOne(
       { _id: userId },
@@ -60,11 +75,20 @@ export class UserRepository {
     );
   }
 
+  static async hasRefreshToken(userId: string, token: string): Promise<boolean> {
+    const exists = await User.exists({ _id: userId, refreshTokens: token });
+    return Boolean(exists);
+  }
+
   static async clearRefreshTokens(userId: string): Promise<void> {
     await User.updateOne(
       { _id: userId },
       { $set: { refreshTokens: [] } }
     );
+  }
+
+  static async incrementDailyCount(userId: string): Promise<SafeUser | null> {
+    return this.incrementDailyGeneration(userId);
   }
 
   static async incrementDailyGeneration(userId: string): Promise<SafeUser | null> {
@@ -86,5 +110,9 @@ export class UserRepository {
         } 
       }
     );
+  }
+
+  static async resetDailyCount(userId: string): Promise<void> {
+    await this.resetDailyGeneration(userId);
   }
 }
