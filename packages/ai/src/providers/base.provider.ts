@@ -1,13 +1,12 @@
-export interface RawAIResponse {
-  content: string;
-  model: string;
-  provider: string;
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-  };
-  durationMs: number;
-}
+import { PromptInput, RawAIResponse, ProviderExecutionContext, ProviderHealthResult } from './provider.types';
+
 export interface AIProvider {
-  generatePaper(input: any): Promise<RawAIResponse>;
+  readonly name: string;
+
+  generatePaper(
+    input: PromptInput,
+    context?: ProviderExecutionContext
+  ): Promise<RawAIResponse>;
+
+  healthCheck(): Promise<ProviderHealthResult>;
 }

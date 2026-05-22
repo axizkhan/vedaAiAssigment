@@ -1,0 +1,10 @@
+export const PROVIDER_CONSTANTS = {
+  DEFAULT_TIMEOUT_MS: 30000,
+  MAX_RETRIES: 3,
+  BASE_BACKOFF_MS: 1000,
+  MAX_BACKOFF_MS: 10000,
+  PROVIDERS: {
+    GROQ: 'groq',
+    OPENROUTER: 'openrouter'
+  }
+} as const;

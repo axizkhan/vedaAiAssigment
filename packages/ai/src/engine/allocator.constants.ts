@@ -1,0 +1,10 @@
+export const ALLOCATOR_CONSTANTS = {
+  MAX_TOTAL_QUESTIONS: 500,
+  MAX_TOTAL_MARKS: 2000,
+  TOLERANCE: 0.0001,
+  DEFAULT_WEIGHTS: {
+    EASY: 0.25,
+    MEDIUM: 0.35,
+    HARD: 0.40
+  }
+} as const;
