@@ -1,0 +1,9 @@
+export const PROMPT_CONSTANTS = {
+  GLOBAL_TOKEN_LIMIT: 8000,
+  CHARS_PER_TOKEN_ESTIMATE: 4,
+  MAX_INSTRUCTION_LENGTH: 2000,
+  VERSIONS: {
+    V1: 'v1',
+    V2: 'v2'
+  }
+} as const;
