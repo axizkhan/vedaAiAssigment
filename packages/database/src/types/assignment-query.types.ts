@@ -10,6 +10,8 @@ export interface AssignmentFilters {
   startDate?: Date;
   endDate?: Date;
   search?: string;
+  sortBy?: 'createdAt' | 'updatedAt' | 'dueDate' | 'title' | 'subject';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface PaginatedAssignments<T> {

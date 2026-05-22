@@ -27,7 +27,7 @@ export class TokenExpiredError extends AppError {
 }
 
 export class ForbiddenError extends AppError {
-  constructor(message = ERROR_MESSAGES.FORBIDDEN) {
+  constructor(message: string = ERROR_MESSAGES.FORBIDDEN) {
     super({ code: RESPONSE_CODES.FORBIDDEN, message, statusCode: 403 });
   }
 }
