@@ -1,0 +1,11 @@
+export const EXTRACTOR_CONSTANTS = {
+  MAX_FILE_SIZE_MB: 10,
+  MAX_FILE_SIZE_BYTES: 10 * 1024 * 1024,
+  MAX_EXTRACTED_TEXT_CHARS: 30000,
+  MAX_PDF_PAGES: 200,
+  TIMEOUT_MS: 15000,
+  SUPPORTED_MIME_TYPES: {
+    PDF: 'application/pdf',
+    TXT: 'text/plain',
+  }
+} as const;

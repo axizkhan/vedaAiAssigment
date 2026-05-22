@@ -1,6 +1,7 @@
 import { logger } from "@assessment-ai/logger";
 import { AssignmentRepository } from "@assessment-ai/database";
 import {
+  extractTextFromFile,
   estimateTokens,
 } from "@assessment-ai/ai";
 import { streamObject } from "@assessment-ai/object-storage";
@@ -168,48 +169,24 @@ class UploadServiceClass {
 
       let extractedText = "";
       
-      // Extraction with 15s timeout
-      const extractionPromise = async () => {
-        if (mimetype === 'text/plain') {
-          return buffer.toString('utf-8');
-        } else if (mimetype === 'application/pdf') {
-          const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-          const loadingTask = pdfjs.getDocument({ data: buffer });
-          const pdfDocument = await loadingTask.promise;
-          let text = "";
-          for (let i = 1; i <= pdfDocument.numPages; i++) {
-            const page = await pdfDocument.getPage(i);
-            const content = await page.getTextContent();
-            text += content.items.map((item: any) => item.str).join(" ") + " ";
-          }
-          return text;
-        }
-        throw new Error('Unsupported mime type for extraction');
-      };
-
-      const timeoutPromise = new Promise<string>((_, reject) => 
-        setTimeout(() => reject(new Error('Extraction timed out')), 15000)
-      );
-
-      extractedText = await Promise.race([extractionPromise(), timeoutPromise]);
-
-      validateExtractedTextNotEmpty(extractedText, traceId);
-
-      // Sanitize and limit to 30000 chars
-      const sanitizedText = sanitizeExtractedText(extractedText, traceId);
+      // Extraction delegated to AI package (which handles the 15s timeout and memory safety)
+      const extractionResult = await extractTextFromFile(buffer, mimetype, traceId);
+      extractedText = extractionResult.text;
+      const sanitizationDurationMs = extractionResult.metrics.sanitizationDurationMs;
+      pageCount = extractionResult.metadata.pageCount || 0;
 
       UploadAudit.extractionCompleted(
         assignmentId,
         0,
-        sanitizedText.length,
-        estimateTokens(sanitizedText),
+        extractedText.length,
+        estimateTokens(extractedText),
         traceId,
       );
 
       return {
-        extractedText: sanitizedText,
-        pageCount: 0,
-        extractionDurationMs: Date.now() - startTime,
+        extractedText: extractedText,
+        pageCount: pageCount,
+        extractionDurationMs: extractionResult.metrics.extractionDurationMs + sanitizationDurationMs,
       };
     } catch (error) {
       logger.error({ error, traceId }, "Text extraction and processing failed");
