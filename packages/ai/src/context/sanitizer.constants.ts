@@ -1,0 +1,4 @@
+export const SANITIZER_CONSTANTS = {
+  MAX_OUTPUT_LENGTH: 30000,
+  REDACTION_TEXT: '[REDACTED]',
+} as const;

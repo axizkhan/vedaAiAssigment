@@ -3,8 +3,7 @@ import { ExtractionResult, SupportedMimeType } from './extractor.types';
 import { UnsupportedMimeTypeError, ExtractionSizeLimitError } from './extractor.errors';
 import { withTimeout } from './extraction-timeout';
 import { guardAgainstMalformedPdf } from './malformed-pdf.guard';
-import { normalizeText } from './text-normalizer';
-import { sanitizeUnicode } from './unicode-sanitizer';
+import { sanitizeExtractedText } from './sanitizer';
 import { extractionMetrics } from './extractor.metrics';
 
 export const extractTextFromFile = async (
@@ -64,15 +63,10 @@ export const extractTextFromFile = async (
     const extractionDurationMs = Date.now() - startTime;
     const sanitizationStartTime = Date.now();
 
-    // Pipeline: Sanitize -> Normalize -> Truncate
-    let processedText = sanitizeUnicode(rawText);
-    processedText = normalizeText(processedText);
-
-    if (processedText.length > EXTRACTOR_CONSTANTS.MAX_EXTRACTED_TEXT_CHARS) {
-      processedText = processedText.substring(0, EXTRACTOR_CONSTANTS.MAX_EXTRACTED_TEXT_CHARS);
-    }
-
-    const sanitizationDurationMs = Date.now() - sanitizationStartTime;
+    // Pipeline: Full Semantic & Security Sanitization
+    const sanitizationResult = sanitizeExtractedText(rawText, traceId);
+    const processedText = sanitizationResult.text;
+    const sanitizationDurationMs = sanitizationResult.metrics.durationMs;
 
     extractionMetrics.trackSuccess({
       traceId,
