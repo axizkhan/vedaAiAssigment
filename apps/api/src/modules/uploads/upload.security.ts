@@ -130,3 +130,38 @@ export function sanitizeMetadata(metadata: Record<string, any>): Record<string, 
 
   return safe;
 }
+
+/**
+ * Sanitize extracted text
+ */
+export function sanitizeExtractedText(text: string, traceId?: string): string {
+  let sanitized = text
+    .replace(/\\0/g, '') // Remove null bytes
+    .replace(/<[^>]*>?/gm, '') // Remove basic HTML tags
+    .replace(/[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, ''); // Remove dangerous control chars
+
+  const dangerousPhrases = [
+    /ignore previous instructions/gi,
+    /system prompt/gi,
+    /developer message/gi,
+    /assistant instructions/gi
+  ];
+
+  for (const phrase of dangerousPhrases) {
+    if (phrase.test(sanitized)) {
+      logger.warn({ traceId, phrase: phrase.source }, "Prompt injection pattern detected and redacted");
+      sanitized = sanitized.replace(phrase, '[REDACTED]');
+    }
+  }
+
+  // Normalize whitespace
+  sanitized = sanitized.replace(/\\s+/g, ' ').trim();
+
+  // Truncate to maximum 30000 characters
+  if (sanitized.length > 30000) {
+    logger.warn({ traceId, originalLength: sanitized.length }, "Text truncated to 30k chars");
+    sanitized = sanitized.substring(0, 30000);
+  }
+
+  return sanitized;
+}

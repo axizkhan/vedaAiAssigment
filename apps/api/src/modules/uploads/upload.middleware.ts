@@ -1,6 +1,8 @@
-import multer, { StorageEngine, Multer } from "multer";
+import multer, { Multer } from "multer";
+import multerS3 from "multer-s3";
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import { logger } from "@assessment-ai/logger";
+import { S3ClientManager, objectPathBuilder, sanitizeObjectName } from "@assessment-ai/object-storage";
 import { UPLOAD_CONFIG } from "./upload.constants";
 import { validateUploadFile } from "./upload.validators";
 import { uploadAssignmentIdSchema } from "./upload.types";
@@ -8,11 +10,30 @@ import { RequestValidationError } from "../../common/errors";
 import { sendErrorResponse } from "../../common/response/error-sender";
 
 /**
- * Create memory storage for multer
- * Files are stored in memory as buffers, not on disk
+ * Create multer-s3 storage engine
+ * Files are streamed directly to S3 without passing through memory/disk
  */
-function createMemoryStorage(): StorageEngine {
-  return multer.memoryStorage();
+function createS3Storage() {
+  return multerS3({
+    s3: S3ClientManager.getInstance(),
+    bucket: S3ClientManager.getBucket(),
+    contentType: multerS3.AUTO_CONTENT_TYPE,
+    metadata: function (req, file, cb) {
+      cb(null, { 
+        'original-filename': sanitizeObjectName(file.originalname),
+        'trace-id': (req as any).traceId || '' 
+      });
+    },
+    key: function (req, file, cb) {
+      const assignmentId = req.params.id;
+      const userId = req.user?.id || 'system';
+      const safeFilename = sanitizeObjectName(file.originalname);
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000000);
+      const key = \`assignments/\${userId}/\${assignmentId}/source/\${timestamp}-\${random}-\${safeFilename}\`;
+      cb(null, key);
+    }
+  });
 }
 
 /**
@@ -52,10 +73,10 @@ function fileFilter(
 }
 
 /**
- * Create multer instance with memory storage
+ * Create multer instance with multer-s3 storage
  */
 export const uploadMulter: Multer = multer({
-  storage: createMemoryStorage(),
+  storage: createS3Storage(),
   fileFilter,
   limits: {
     fileSize: UPLOAD_CONFIG.FILE_SIZE_LIMIT,

@@ -49,22 +49,16 @@ export async function uploadAssignmentFileController(
       traceId,
     });
 
-    // Map to response format
-    const response = mapUploadToResponse(uploadResult);
-
-    logger.info(
-      {
-        assignmentId: req.params.id,
-        userId: req.user.id,
-        tokenCount: response.tokenCount,
-        traceId,
-      },
-      "File upload completed",
-    );
+    // Build exact expected response format
+    const responsePayload = {
+      fileKey: uploadResult.fileKey,
+      extractedTextPreview: uploadResult.extractedText.substring(0, 500),
+      tokenCount: uploadResult.tokenCount
+    };
 
     return sendSuccessResponse(res, {
       statusCode: 200,
-      data: response,
+      data: responsePayload,
       traceId,
     });
   } catch (error) {

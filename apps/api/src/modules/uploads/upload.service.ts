@@ -1,14 +1,10 @@
 import { logger } from "@assessment-ai/logger";
 import { AssignmentRepository } from "@assessment-ai/database";
 import {
-  extractText,
-  sanitizeExtractedText,
   estimateTokens,
-  truncateContent,
-  validateExtractedContext,
-  detectPromptInjection,
 } from "@assessment-ai/ai";
-import { uploadFile } from "@assessment-ai/object-storage";
+import { streamObject } from "@assessment-ai/object-storage";
+import { sanitizeExtractedText } from "./upload.security";
 import { apiEnv } from "@assessment-ai/config";
 
 import { UploadAudit } from "./upload.audit";
@@ -67,16 +63,15 @@ class UploadServiceClass {
         traceId,
       );
 
-      // 2. Upload file to S3/MinIO
-      const fileKey = await this.uploadFileToStorage(
-        assignmentId,
-        file,
-        traceId,
-      );
+      // 2. Extract key from multer-s3
+      const fileKey = (file as any).key;
+      if (!fileKey) {
+        throw new FileUploadStorageError("File key missing from multer-s3");
+      }
 
-      // 3. Extract text from file
+      // 3. Extract text from file directly from S3 stream
       const { extractedText, pageCount, extractionDurationMs } =
-        await this.extractAndProcessText(assignmentId, file, traceId);
+        await this.extractAndProcessText(assignmentId, fileKey, file.mimetype, traceId);
 
       // 4. Estimate tokens
       const tokenCount = estimateTokens(extractedText);
@@ -143,108 +138,69 @@ class UploadServiceClass {
   }
 
   /**
-   * Upload file to S3/MinIO storage
+   * (Removed manual upload since multer-s3 handles it)
    */
-  private async uploadFileToStorage(
-    assignmentId: string,
-    file: Express.Multer.File,
-    traceId?: string,
-  ): Promise<string> {
-    try {
-      const fileKey = await uploadFile({
-        assignmentId,
-        userId: "system", // Should ideally be passed down
-        filename: file.originalname,
-        buffer: file.buffer,
-        contentType: file.mimetype,
-        metadata: {
-          "original-filename": file.originalname,
-          "file-size": String(file.size),
-        },
-        traceId,
-      });
-
-      return fileKey;
-    } catch (error) {
-      logger.error(
-        { error, assignmentId, traceId },
-        "File upload to storage failed",
-      );
-      UploadAudit.storageFailed(
-        assignmentId,
-        "",
-        "Failed to upload file to S3/MinIO",
-        traceId,
-      );
-      throw new FileUploadStorageError();
-    }
-  }
 
   /**
    * Extract text from file and process it
    */
   private async extractAndProcessText(
     assignmentId: string,
-    file: Express.Multer.File,
+    fileKey: string,
+    mimetype: string,
     traceId?: string
   ): Promise<{
     extractedText: string;
     pageCount?: number;
     extractionDurationMs: number;
   }> {
-    UploadAudit.extractionStarted(assignmentId, file.mimetype, traceId);
+    UploadAudit.extractionStarted(assignmentId, mimetype, traceId);
+    const startTime = Date.now();
 
     try {
-      // Extract text based on MIME type
-      const extractionResult = await extractText(
-        file.buffer,
-        file.mimetype,
-        traceId,
-      );
+      // Stream file back from S3
+      const stream = await streamObject(fileKey, traceId);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
 
-      // Validate extracted text is not empty
-      validateExtractedTextNotEmpty(extractionResult.text, traceId);
-
-      // Sanitize extracted text
-      const sanitizationResult = sanitizeExtractedText(
-        extractionResult.text,
-        traceId,
-      );
-      let sanitizedText = sanitizationResult.text;
-
-      // Check for prompt injection
-      if (sanitizationResult.suspiciousPhrases.length > 0) {
-        const injectionResult = detectPromptInjection(
-          sanitizationResult.text,
-          traceId,
-        );
-        if (injectionResult.isDetected) {
-          UploadAudit.injectionDetected(
-            assignmentId,
-            injectionResult.riskScore,
-            injectionResult.detectedPatterns,
-            traceId,
-          );
+      let extractedText = "";
+      
+      // Extraction with 15s timeout
+      const extractionPromise = async () => {
+        if (mimetype === 'text/plain') {
+          return buffer.toString('utf-8');
+        } else if (mimetype === 'application/pdf') {
+          const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+          const loadingTask = pdfjs.getDocument({ data: buffer });
+          const pdfDocument = await loadingTask.promise;
+          let text = "";
+          for (let i = 1; i <= pdfDocument.numPages; i++) {
+            const page = await pdfDocument.getPage(i);
+            const content = await page.getTextContent();
+            text += content.items.map((item: any) => item.str).join(" ") + " ";
+          }
+          return text;
         }
-      }
+        throw new Error('Unsupported mime type for extraction');
+      };
 
-      // Truncate to max length
-      const truncationResult = truncateContent(
-        sanitizedText,
-        undefined,
-        traceId,
+      const timeoutPromise = new Promise<string>((_, reject) => 
+        setTimeout(() => reject(new Error('Extraction timed out')), 15000)
       );
-      sanitizedText = truncationResult.text;
 
-      // Validate final content
-      const validationResult = validateExtractedContext(sanitizedText, traceId);
-      if (!validationResult.isValid) {
-        throw new TextExtractionError(validationResult.errors.join("; "));
-      }
+      extractedText = await Promise.race([extractionPromise(), timeoutPromise]);
+
+      validateExtractedTextNotEmpty(extractedText, traceId);
+
+      // Sanitize and limit to 30000 chars
+      const sanitizedText = sanitizeExtractedText(extractedText, traceId);
 
       UploadAudit.extractionCompleted(
         assignmentId,
-        extractionResult.pageCount,
+        0,
         sanitizedText.length,
         estimateTokens(sanitizedText),
         traceId,
@@ -252,8 +208,8 @@ class UploadServiceClass {
 
       return {
         extractedText: sanitizedText,
-        pageCount: extractionResult.pageCount,
-        extractionDurationMs: extractionResult.extractionDurationMs,
+        pageCount: 0,
+        extractionDurationMs: Date.now() - startTime,
       };
     } catch (error) {
       logger.error({ error, traceId }, "Text extraction and processing failed");
