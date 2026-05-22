@@ -8,11 +8,7 @@ import {
   validateExtractedContext,
   detectPromptInjection,
 } from "@assessment-ai/ai";
-import {
-  uploadFile,
-  S3ClientManager,
-  type S3Config,
-} from "@assessment-ai/object-storage";
+import { uploadFile } from "@assessment-ai/object-storage";
 import { apiEnv } from "@assessment-ai/config";
 
 import { UploadAudit } from "./upload.audit";
@@ -40,9 +36,9 @@ class UploadServiceClass {
   /**
    * Initialize S3 client (call once at startup)
    */
-  static initializeStorage(config: S3Config): void {
+  static initializeStorage(): void {
     if (!this.initialized) {
-      S3ClientManager.initialize(config);
+      // The new S3ClientManager inside the package auto-initializes using env vars.
       this.initialized = true;
       logger.info("Upload service initialized with S3 storage");
     }
@@ -157,6 +153,7 @@ class UploadServiceClass {
     try {
       const fileKey = await uploadFile({
         assignmentId,
+        userId: "system", // Should ideally be passed down
         filename: file.originalname,
         buffer: file.buffer,
         contentType: file.mimetype,

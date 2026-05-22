@@ -1,39 +1,30 @@
 export class StorageError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly statusCode: number = 500,
-    readonly isOperational: boolean = true,
-  ) {
+  constructor(message: string, public code: string) {
     super(message);
-    this.name = "StorageError";
-    Object.setPrototypeOf(this, StorageError.prototype);
-    if (typeof (Error as any).captureStackTrace === 'function') {
-      (Error as any).captureStackTrace(this, this.constructor);
-    }
+    this.name = 'StorageError';
   }
 }
 
-export class FileUploadError extends StorageError {
-  constructor(message = "File upload failed") {
-    super("FILE_UPLOAD_FAILED", message, 500);
+export class StorageUploadError extends StorageError {
+  constructor(message: string) {
+    super(message, 'STORAGE_UPLOAD_ERROR');
   }
 }
 
-export class FileTooLargeError extends StorageError {
-  constructor(message = "File exceeds maximum allowed size") {
-    super("FILE_TOO_LARGE", message, 413);
+export class StorageDownloadError extends StorageError {
+  constructor(message: string) {
+    super(message, 'STORAGE_DOWNLOAD_ERROR');
   }
 }
 
-export class InvalidFileTypeError extends StorageError {
-  constructor(message = "Invalid file type") {
-    super("INVALID_FILE_TYPE", message, 400);
+export class StorageNotFoundError extends StorageError {
+  constructor(message: string) {
+    super(message, 'STORAGE_NOT_FOUND');
   }
 }
 
-export class FileNotFoundError extends StorageError {
-  constructor(message = "File not found") {
-    super("FILE_NOT_FOUND", message, 404);
+export class StoragePermissionError extends StorageError {
+  constructor(message: string) {
+    super(message, 'STORAGE_PERMISSION_DENIED');
   }
 }

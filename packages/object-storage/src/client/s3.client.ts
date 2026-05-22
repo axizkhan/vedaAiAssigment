@@ -1,180 +1,43 @@
-import {
-  S3Client,
-  S3ClientConfig,
-  PutObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { logger } from "@assessment-ai/logger";
-
-interface S3Config {
-  endpoint?: string;
-  region: string;
-  credentials: {
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
-  bucket: string;
-  forcePathStyle?: boolean;
-}
+import { S3Client } from '@aws-sdk/client-s3';
+import { apiEnv } from '@assessment-ai/config';
+import { logger } from '@assessment-ai/logger';
+import { retryPolicy } from '../utils/retry-policy';
 
 class S3ClientManager {
   private static instance: S3Client | null = null;
-  private static config: S3Config | null = null;
+  private static config: { bucket: string } | null = null;
 
-  static initialize(config: S3Config): void {
-    if (this.instance) {
-      logger.warn("S3Client already initialized. Skipping re-initialization.");
-      return;
-    }
+  public static initialize() {
+    if (this.instance) return;
 
-    this.config = config;
-
-    const clientConfig: S3ClientConfig = {
-      region: config.region,
+    this.instance = new S3Client({
+      endpoint: apiEnv.S3_ENDPOINT,
+      region: apiEnv.S3_REGION,
       credentials: {
-        accessKeyId: config.credentials.accessKeyId,
-        secretAccessKey: config.credentials.secretAccessKey,
+        accessKeyId: apiEnv.S3_ACCESS_KEY,
+        secretAccessKey: apiEnv.S3_SECRET_KEY,
       },
-    };
+      forcePathStyle: apiEnv.S3_FORCE_PATH_STYLE,
+    });
 
-    if (config.endpoint) {
-      clientConfig.endpoint = config.endpoint;
-      if (config.forcePathStyle !== false) {
-        clientConfig.forcePathStyle = true;
-      }
-    }
-
-    this.instance = new S3Client(clientConfig);
-    logger.info(
-      { endpoint: config.endpoint, region: config.region },
-      "S3Client initialized",
-    );
+    this.config = { bucket: apiEnv.S3_BUCKET };
+    logger.info('S3 Client initialized', { endpoint: apiEnv.S3_ENDPOINT, bucket: apiEnv.S3_BUCKET });
   }
 
-  static getInstance(): S3Client {
+  public static getInstance(): S3Client {
     if (!this.instance) {
-      throw new Error(
-        "S3Client not initialized. Call S3ClientManager.initialize() first.",
-      );
+      this.initialize();
     }
-    return this.instance;
+    return this.instance!;
   }
 
-  static getConfig(): S3Config {
+  public static getBucket(): string {
     if (!this.config) {
-      throw new Error(
-        "S3Config not set. Call S3ClientManager.initialize() first.",
-      );
+      this.initialize();
     }
-    return this.config;
-  }
-
-  static async putObject(
-    key: string,
-    body: Buffer | Uint8Array | string,
-    contentType: string,
-    metadata?: Record<string, string>,
-  ): Promise<void> {
-    const client = this.getInstance();
-    const config = this.getConfig();
-
-    try {
-      const command = new PutObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-        Metadata: metadata,
-      });
-
-      await client.send(command);
-      logger.debug({ bucket: config.bucket, key }, "Object uploaded to S3");
-    } catch (error) {
-      logger.error({ bucket: config.bucket, key, error }, "S3 upload failed");
-      throw error;
-    }
-  }
-
-  static async getObject(key: string): Promise<{
-    body: AsyncIterable<Uint8Array>;
-    contentType?: string;
-  }> {
-    const client = this.getInstance();
-    const config = this.getConfig();
-
-    try {
-      const command = new GetObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-      });
-
-      const response = await client.send(command);
-      return {
-        body: response.Body as AsyncIterable<Uint8Array>,
-        contentType: response.ContentType,
-      };
-    } catch (error) {
-      logger.error({ bucket: config.bucket, key, error }, "S3 download failed");
-      throw error;
-    }
-  }
-
-  static async getSignedDownloadUrl(
-    key: string,
-    expiresIn: number = 3600,
-  ): Promise<string> {
-    const client = this.getInstance();
-    const config = this.getConfig();
-
-    try {
-      const command = new GetObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-      });
-
-      const url = await getSignedUrl(client, command, { expiresIn });
-      logger.debug(
-        { bucket: config.bucket, key },
-        "Signed download URL generated",
-      );
-      return url;
-    } catch (error) {
-      logger.error(
-        { bucket: config.bucket, key, error },
-        "Failed to generate signed URL",
-      );
-      throw error;
-    }
-  }
-
-  static async headObject(
-    key: string,
-  ): Promise<{ contentLength: number; contentType?: string }> {
-    const client = this.getInstance();
-    const config = this.getConfig();
-
-    try {
-      const command = new HeadObjectCommand({
-        Bucket: config.bucket,
-        Key: key,
-      });
-
-      const response = await client.send(command);
-      return {
-        contentLength: response.ContentLength ?? 0,
-        contentType: response.ContentType,
-      };
-    } catch (error) {
-      logger.error(
-        { bucket: config.bucket, key, error },
-        "S3 head object failed",
-      );
-      throw error;
-    }
+    return this.config!.bucket;
   }
 }
 
-export { S3ClientManager };
-export type { S3Config };
+export const getS3Client = () => S3ClientManager.getInstance();
+export const getS3Bucket = () => S3ClientManager.getBucket();
