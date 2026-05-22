@@ -15,7 +15,9 @@
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "strict": true,
-    "strictNullChecks": true
+    "strictNullChecks": true,
+    "target": "ES2020",
+    "lib": ["ES2020"]
   },
   "exclude": ["node_modules"]
 }

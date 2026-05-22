@@ -1,8 +1,17 @@
-import { Assignment } from '../models/assignment.model';
-import { IAssignment, AssignmentDocument, CreateAssignmentInput, UpdateAssignmentInput, AssignmentStatus } from '../types/assignment.types';
-import { AssignmentFilters, PaginatedAssignments } from '../types/assignment-query.types';
-import { Types, FilterQuery } from 'mongoose';
-import { AssignmentAuditService } from '../services/assignment-audit.service';
+import { Assignment } from "../models/assignment.model";
+import {
+  IAssignment,
+  AssignmentDocument,
+  CreateAssignmentInput,
+  UpdateAssignmentInput,
+  AssignmentStatus,
+} from "../types/assignment.types";
+import {
+  AssignmentFilters,
+  PaginatedAssignments,
+} from "../types/assignment-query.types";
+import { Types, FilterQuery } from "mongoose";
+import { AssignmentAuditService } from "../services/assignment-audit.service";
 
 type AssignmentProjection = Record<string, 0 | 1>;
 
@@ -10,7 +19,9 @@ function toObjectId(id: string | Types.ObjectId): Types.ObjectId {
   return id instanceof Types.ObjectId ? id : new Types.ObjectId(id);
 }
 
-function buildAssignmentQuery(filters: Partial<AssignmentFilters> & { createdBy?: Types.ObjectId | string }): FilterQuery<IAssignment> {
+function buildAssignmentQuery(
+  filters: Partial<AssignmentFilters> & { createdBy?: Types.ObjectId | string },
+): FilterQuery<IAssignment> {
   const query: FilterQuery<IAssignment> = {};
 
   if (filters.createdBy) query.createdBy = toObjectId(filters.createdBy);
@@ -28,10 +39,13 @@ function buildAssignmentQuery(filters: Partial<AssignmentFilters> & { createdBy?
 }
 
 export class AssignmentRepository {
-  static async createAssignment(userId: string, data: CreateAssignmentInput): Promise<AssignmentDocument> {
+  static async createAssignment(
+    userId: string,
+    data: CreateAssignmentInput,
+  ): Promise<AssignmentDocument> {
     const assignment = new Assignment({
       ...data,
-      createdBy: new Types.ObjectId(userId)
+      createdBy: new Types.ObjectId(userId),
     });
     const saved = await assignment.save();
     await AssignmentAuditService.recordAssignmentCreated(saved._id, userId, {
@@ -43,26 +57,45 @@ export class AssignmentRepository {
     return saved;
   }
 
-  static async findById(id: string, userId: string): Promise<IAssignment | null> {
-    return Assignment.findOne({ _id: id, createdBy: userId }).lean().exec() as unknown as Promise<IAssignment | null>;
+  static async findById(
+    id: string,
+    userId: string,
+  ): Promise<IAssignment | null> {
+    return Assignment.findOne({ _id: id, createdBy: userId })
+      .lean()
+      .exec() as unknown as Promise<IAssignment | null>;
   }
 
-  static async findByIdForUser(id: string, userId: string, projection?: AssignmentProjection): Promise<IAssignment | null> {
+  static async findByIdForUser(
+    id: string,
+    userId: string,
+    projection?: AssignmentProjection,
+  ): Promise<IAssignment | null> {
     return Assignment.findOne({ _id: id, createdBy: toObjectId(userId) })
       .select(projection ?? {})
       .lean()
       .exec() as unknown as Promise<IAssignment | null>;
   }
 
-  static async findByIdForGeneration(id: string): Promise<AssignmentDocument | null> {
+  static async findByIdForGeneration(
+    id: string,
+  ): Promise<AssignmentDocument | null> {
     return Assignment.findById(id).exec();
   }
 
-  static async updateAssignment(id: string, userId: string, data: UpdateAssignmentInput): Promise<IAssignment | null> {
+  static async updateAssignment(
+    id: string,
+    userId: string,
+    data: UpdateAssignmentInput,
+  ): Promise<IAssignment | null> {
     const updated = await (Assignment.findOneAndUpdate(
-      { _id: id, createdBy: userId, status: { $in: [AssignmentStatus.DRAFT, AssignmentStatus.FAILED] } },
+      {
+        _id: id,
+        createdBy: userId,
+        status: { $in: [AssignmentStatus.DRAFT, AssignmentStatus.FAILED] },
+      },
       { $set: data },
-      { new: true, lean: true }
+      { new: true, lean: true },
     ).exec() as unknown as Promise<IAssignment | null>);
 
     if (updated) {
@@ -75,9 +108,12 @@ export class AssignmentRepository {
     return updated;
   }
 
-  static async findMany(filters: AssignmentFilters, projection?: AssignmentProjection): Promise<IAssignment[]> {
-    const sortBy = filters.sortBy ?? 'createdAt';
-    const sortOrder = filters.sortOrder === 'asc' ? 1 : -1;
+  static async findMany(
+    filters: AssignmentFilters,
+    projection?: AssignmentProjection,
+  ): Promise<IAssignment[]> {
+    const sortBy = filters.sortBy ?? "createdAt";
+    const sortOrder = filters.sortOrder === "asc" ? 1 : -1;
     const skip = (filters.page - 1) * filters.limit;
 
     return Assignment.find(buildAssignmentQuery(filters))
@@ -89,7 +125,9 @@ export class AssignmentRepository {
       .exec() as unknown as Promise<IAssignment[]>;
   }
 
-  static async countAssignments(filters: Partial<AssignmentFilters>): Promise<number> {
+  static async countAssignments(
+    filters: Partial<AssignmentFilters>,
+  ): Promise<number> {
     return Assignment.countDocuments(buildAssignmentQuery(filters)).exec();
   }
 
@@ -98,10 +136,12 @@ export class AssignmentRepository {
     return result.deletedCount === 1;
   }
 
-  static async paginateAssignments(filters: AssignmentFilters): Promise<PaginatedAssignments<IAssignment>> {
+  static async paginateAssignments(
+    filters: AssignmentFilters,
+  ): Promise<PaginatedAssignments<IAssignment>> {
     const [data, total] = await Promise.all([
       this.findMany(filters, { extractedText: 0 }),
-      this.countAssignments(filters)
+      this.countAssignments(filters),
     ]);
 
     return {
@@ -109,31 +149,67 @@ export class AssignmentRepository {
       total,
       page: filters.page,
       limit: filters.limit,
-      totalPages: Math.ceil(total / filters.limit)
+      totalPages: Math.ceil(total / filters.limit),
     };
   }
 
-  static async attachUploadedFile(id: string, userId: string, s3ObjectKey: string, extractedText: string, tokenCount: number): Promise<IAssignment | null> {
+  static async attachUploadedFile(
+    id: string,
+    userId: string,
+    s3ObjectKey: string,
+    extractedText: string,
+    tokenCount: number,
+  ): Promise<IAssignment | null> {
     return Assignment.findOneAndUpdate(
-      { _id: id, createdBy: userId, status: { $in: [AssignmentStatus.DRAFT, AssignmentStatus.FAILED] } },
-      { $set: { s3ObjectKey, extractedText, extractedTextTokenCount: tokenCount } },
-      { new: true, lean: true }
+      {
+        _id: id,
+        createdBy: userId,
+        status: { $in: [AssignmentStatus.DRAFT, AssignmentStatus.FAILED] },
+      },
+      {
+        $set: {
+          s3ObjectKey,
+          extractedText,
+          extractedTextTokenCount: tokenCount,
+        },
+      },
+      { new: true, lean: true },
     ).exec() as unknown as Promise<IAssignment | null>;
   }
 
-  static async attachUpload(id: string, userId: string, s3ObjectKey: string, extractedText: string, tokenCount: number): Promise<IAssignment | null> {
-    return this.attachUploadedFile(id, userId, s3ObjectKey, extractedText, tokenCount);
+  static async attachUpload(
+    id: string,
+    userId: string,
+    s3ObjectKey: string,
+    extractedText: string,
+    tokenCount: number,
+  ): Promise<IAssignment | null> {
+    return this.attachUploadedFile(
+      id,
+      userId,
+      s3ObjectKey,
+      extractedText,
+      tokenCount,
+    );
   }
 
-  static async attachGenerationJob(id: string, jobId: string, status: AssignmentStatus = AssignmentStatus.QUEUED): Promise<boolean> {
+  static async attachGenerationJob(
+    id: string,
+    jobId: string,
+    status: AssignmentStatus = AssignmentStatus.QUEUED,
+  ): Promise<boolean> {
     const result = await Assignment.updateOne(
       { _id: id },
-      { $set: { generationJobId: jobId, status } }
+      { $set: { generationJobId: jobId, status } },
     ).exec();
     return result.modifiedCount === 1;
   }
 
-  static async updateGenerationStatus(id: string, status: AssignmentStatus, jobId?: string | null): Promise<void> {
+  static async updateGenerationStatus(
+    id: string,
+    status: AssignmentStatus,
+    jobId?: string | null,
+  ): Promise<void> {
     const update: any = { status };
     if (jobId !== undefined) {
       update.generationJobId = jobId;
@@ -141,10 +217,28 @@ export class AssignmentRepository {
     await Assignment.updateOne({ _id: id }, { $set: update }).exec();
   }
 
-  static async updateStatus(id: string, status: AssignmentStatus, jobId?: string | null): Promise<boolean> {
+  static async updateStatus(
+    id: string,
+    status: AssignmentStatus,
+    jobId?: string | null,
+  ): Promise<boolean> {
     const update: Partial<IAssignment> = { status };
     if (jobId !== undefined) update.generationJobId = jobId;
-    const result = await Assignment.updateOne({ _id: id }, { $set: update }).exec();
+    const result = await Assignment.updateOne(
+      { _id: id },
+      { $set: update },
+    ).exec();
+    return result.modifiedCount === 1;
+  }
+
+  static async updateAssignmentRaw(
+    id: string,
+    data: Record<string, unknown>,
+  ): Promise<boolean> {
+    const result = await Assignment.updateOne(
+      { _id: id },
+      { $set: data },
+    ).exec();
     return result.modifiedCount === 1;
   }
 }

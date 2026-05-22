@@ -21,12 +21,18 @@
     "express-rate-limit": "^7.2.0",
     "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2",
-    "@assessment-ai/config": "workspace:*"
+    "@assessment-ai/config": "workspace:*",
+    "@assessment-ai/object-storage": "workspace:*",
+    "@assessment-ai/ai": "workspace:*",
+    "@assessment-ai/types": "workspace:*",
+    "@assessment-ai/validation": "workspace:*",
+    "multer": "^1.4.5-lts.1"
   },
   "devDependencies": {
     "@assessment-ai/tsconfig": "workspace:*",
     "@types/express": "^4.17.21",
     "@types/cors": "^2.8.17",
+    "@types/multer": "^1.4.11",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.4.3",
     "@types/bcrypt": "^5.0.2",

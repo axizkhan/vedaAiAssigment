@@ -9,10 +9,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.540.0"
+    "@aws-sdk/client-s3": "^3.540.0",
+    "@aws-sdk/s3-request-presigner": "^3.540.0",
+    "@assessment-ai/logger": "workspace:*"
   },
   "devDependencies": {
     "@assessment-ai/tsconfig": "workspace:*",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.3",
+    "@types/node": "^20.12.0"
   }
 }
