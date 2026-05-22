@@ -1,164 +1,22 @@
-import { logger } from "@assessment-ai/logger";
-import { UploadAuditEvent } from "./upload.constants";
+import { logger } from '@assessment-ai/logger';
 
-export class UploadAudit {
-  static uploadInitiated(
-    assignmentId: string,
-    userId: string,
-    fileName: string,
-    traceId?: string,
-  ): void {
-    logger.info(
-      {
-        assignmentId,
-        userId,
-        fileName,
-        event: UploadAuditEvent.UPLOAD_INITIATED,
-        traceId,
-      },
-      "Upload initiated",
-    );
+export const UploadAudit = {
+  uploadStarted: (assignmentId: string, userId: string, filename: string, traceId?: string) => {
+    logger.info('Upload started', { assignmentId, userId, filename, traceId });
+  },
+  uploadCompleted: (assignmentId: string, userId: string, fileKey: string, size: number, durationMs: number, traceId?: string) => {
+    logger.info('Upload completed', { assignmentId, userId, fileKey, fileSize: size, uploadDurationMs: durationMs, success: true, traceId });
+  },
+  uploadFailed: (assignmentId: string, userId: string, error: Error, traceId?: string) => {
+    logger.error('Upload failed', { assignmentId, userId, error: error.message, success: false, traceId });
+  },
+  securityViolation: (assignmentId: string, userId: string, filename: string, reason: string, traceId?: string) => {
+    logger.warn('Upload security violation', { assignmentId, userId, filename, reason, traceId });
+  },
+  extractionStarted: (assignmentId: string, mimetype: string, traceId?: string) => {
+    logger.info('Text extraction started', { assignmentId, mimetype, traceId });
+  },
+  extractionCompleted: (assignmentId: string, pageCount: number, extractedLength: number, tokenCount: number, traceId?: string) => {
+    logger.info('Text extraction completed', { assignmentId, pageCount, extractedLength, tokenCount, traceId });
   }
-
-  static validationFailed(
-    assignmentId: string,
-    userId: string,
-    reason: string,
-    traceId?: string,
-  ): void {
-    logger.warn(
-      {
-        assignmentId,
-        userId,
-        reason,
-        event: UploadAuditEvent.UPLOAD_VALIDATION_FAILED,
-        traceId,
-      },
-      "Upload validation failed",
-    );
-  }
-
-  static ownershipDenied(
-    assignmentId: string,
-    userId: string,
-    traceId?: string,
-  ): void {
-    logger.warn(
-      {
-        assignmentId,
-        userId,
-        event: UploadAuditEvent.UPLOAD_OWNERSHIP_DENIED,
-        traceId,
-      },
-      "Upload ownership denied",
-    );
-  }
-
-  static uploadSuccess(
-    assignmentId: string,
-    userId: string,
-    fileKey: string,
-    tokenCount: number,
-    traceId?: string,
-  ): void {
-    logger.info(
-      {
-        assignmentId,
-        userId,
-        fileKey,
-        tokenCount,
-        event: UploadAuditEvent.UPLOAD_SUCCESS,
-        traceId,
-      },
-      "Upload completed successfully",
-    );
-  }
-
-  static storageFailed(
-    assignmentId: string,
-    userId: string,
-    reason: string,
-    traceId?: string,
-  ): void {
-    logger.error(
-      {
-        assignmentId,
-        userId,
-        reason,
-        event: UploadAuditEvent.UPLOAD_STORAGE_FAILED,
-        traceId,
-      },
-      "Upload storage failed",
-    );
-  }
-
-  static extractionStarted(
-    assignmentId: string,
-    mimeType: string,
-    traceId?: string,
-  ): void {
-    logger.debug(
-      {
-        assignmentId,
-        mimeType,
-        event: UploadAuditEvent.TEXT_EXTRACTION_STARTED,
-        traceId,
-      },
-      "Text extraction started",
-    );
-  }
-
-  static extractionFailed(
-    assignmentId: string,
-    reason: string,
-    traceId?: string,
-  ): void {
-    logger.error(
-      {
-        assignmentId,
-        reason,
-        event: UploadAuditEvent.TEXT_EXTRACTION_FAILED,
-        traceId,
-      },
-      "Text extraction failed",
-    );
-  }
-
-  static extractionCompleted(
-    assignmentId: string,
-    pageCount: number | undefined,
-    textLength: number,
-    tokenCount: number,
-    traceId?: string,
-  ): void {
-    logger.info(
-      {
-        assignmentId,
-        pageCount,
-        textLength,
-        tokenCount,
-        event: UploadAuditEvent.TEXT_EXTRACTION_COMPLETED,
-        traceId,
-      },
-      "Text extraction completed",
-    );
-  }
-
-  static injectionDetected(
-    assignmentId: string,
-    riskScore: number,
-    patterns: string[],
-    traceId?: string,
-  ): void {
-    logger.warn(
-      {
-        assignmentId,
-        riskScore,
-        patterns,
-        event: UploadAuditEvent.INJECTION_DETECTED,
-        traceId,
-      },
-      "Potential prompt injection detected in uploaded content",
-    );
-  }
-}
+};

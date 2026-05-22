@@ -1,23 +1,13 @@
-export { uploadsRouter } from "./upload.routes";
-export { uploadService } from "./upload.service";
-export { uploadMulter } from "./upload.middleware";
-
-// Types and interfaces
-export type { UploadResponse } from "./upload.types";
-
-// Error classes
-export {
-  UploadError,
-  FileNotProvidedError,
-  FileTooLargeError,
-  InvalidFileTypeError,
-  InvalidFileContentError,
-  TextExtractionError,
-  FileUploadStorageError,
-  AssignmentNotFoundError,
-  AssignmentOwnershipError,
-  FileUpdateError,
-} from "./upload.errors";
-
-// Constants
-export { UPLOAD_CONFIG, FILE_TYPES, MAGIC_BYTES } from "./upload.constants";
+export * from './upload.constants';
+export * from './upload.types';
+export * from './upload.errors';
+export * from './upload.mime';
+export * from './upload.security';
+export * from './upload.validators';
+export * from './upload.utils';
+export * from './upload.audit';
+export * from './upload.mapper';
+export * from './upload.middleware';
+export * from './upload.service';
+export * from './upload.controller';
+export * from './upload.routes';
