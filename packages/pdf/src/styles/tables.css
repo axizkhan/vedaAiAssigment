@@ -1,0 +1,30 @@
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: var(--margin-standard);
+  page-break-inside: auto;
+}
+
+th, td {
+  border: var(--border-width) solid var(--border-color);
+  padding: 8px;
+  text-align: left;
+}
+
+tr {
+  page-break-inside: avoid;
+  page-break-after: auto;
+}
+
+thead {
+  display: table-header-group;
+}
+
+tfoot {
+  display: table-footer-group;
+}
+
+/* Ensure no half-rendered rows */
+tbody {
+  break-inside: auto;
+}

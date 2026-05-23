@@ -6,8 +6,7 @@ export interface PdfJobPayload {
   requestedAt: string;
 }
 
-export interface PdfReadyPayload {
-  assignmentId: string;
-  version: number;
-  downloadUrl: string;
+export interface PdfWorkerConfig {
+  concurrency: number;
+  lockDuration: number;
 }

@@ -1,14 +1,57 @@
-import { pdfQueue } from '@assessment-ai/queue';
-import { getSignedUrl, objectPathBuilder } from '@assessment-ai/object-storage';
+import { enqueuePdfGeneration } from './pdf.queue';
+import { PdfStorage } from './pdf.storage';
+import { PdfNotFoundError } from './pdf.errors';
+import { PdfWebsocket } from './pdf.websocket';
+import { mapVersionToPdfMeta } from './pdf.mapper';
 
-export const pdfService = {
-  generatePdf: async (input: any) => {
-    const job = await pdfQueue.add('generate-pdf', input);
-    return { jobId: job.id };
+// Stub for Version Model
+const VersionModel = {
+  findOne: async ({ assignmentId, version }: any) => {
+    return {
+      assignmentId,
+      version,
+      pdfS3Key: null, // Change to test redirect
+    };
+  }
+};
+
+export const PdfService = {
+  getPdfStatus: async (assignmentId: string, version: number) => {
+    const versionDoc = await VersionModel.findOne({ assignmentId, version });
+    if (!versionDoc) throw new PdfNotFoundError('Version not found');
+
+    if (versionDoc.pdfS3Key) {
+      return { status: 'completed', exists: true };
+    }
+    return { status: 'queued', exists: false };
   },
-  getPdf: async (assignmentId: string, userId: string, version?: string) => {
-    const key = objectPathBuilder.generatedPaper(assignmentId, parseInt(version || '1', 10));
-    const url = await getSignedUrl(key, 3600); // 1 hour expiry
-    return { url };
+
+  getOrGeneratePdf: async (
+    assignmentId: string, 
+    version: number, 
+    userId: string, 
+    traceId: string
+  ): Promise<{ redirectUrl?: string, queued?: boolean, jobId?: string }> => {
+    const versionDoc = await VersionModel.findOne({ assignmentId, version });
+    if (!versionDoc) throw new PdfNotFoundError('Version not found');
+
+    const meta = mapVersionToPdfMeta(versionDoc);
+
+    if (meta.pdfS3Key) {
+      const signedUrl = await PdfStorage.getSignedPdfUrl(meta.pdfS3Key);
+      return { redirectUrl: signedUrl };
+    }
+
+    const jobId = await enqueuePdfGeneration({
+      assignmentId,
+      version,
+      requestedBy: userId,
+      traceId,
+      requestedAt: new Date().toISOString(),
+    });
+
+    PdfWebsocket.emitPdfQueued(assignmentId, version);
+
+    return { queued: true, jobId };
   }
 };

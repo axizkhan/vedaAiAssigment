@@ -1,16 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
+  <title>{{examTitle}}</title>
   <style>
-    @page { size: A4; margin: 20mm 25mm; }
-    body { font-family: sans-serif; }
-    .page-break { page-break-after: always; }
-    .avoid-break { break-inside: avoid; }
+    /* Injected Print Styles via Puppeteer Renderer */
+    {{{injectedStyles}}}
   </style>
 </head>
 <body>
-  <h1>{{title}}</h1>
-  <h2>{{subject}}</h2>
-  <div class="instructions">{{instructions}}</div>
+  <div class="paper-container">
+    {{> header this}}
+    
+    {{#if instructions}}
+    <div class="instructions avoid-page-break margin-large">
+      <h3 class="section-title">Instructions</h3>
+      <p>{{{instructions}}}</p>
+    </div>
+    {{/if}}
+
+    <div class="sections">
+      {{#each sections}}
+        {{> section this}}
+      {{/each}}
+    </div>
+    
+    {{> footer this}}
+  </div>
 </body>
 </html>

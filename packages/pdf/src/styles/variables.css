@@ -1,0 +1,19 @@
+:root {
+  --font-family-serif: 'Times New Roman', Georgia, serif;
+  --font-family-mono: 'Courier New', Courier, monospace;
+  
+  --font-size-base: 12pt;
+  --font-size-h1: 18pt;
+  --font-size-h2: 16pt;
+  --font-size-h3: 14pt;
+  --font-size-small: 10pt;
+  
+  --line-height-base: 1.5;
+  
+  --margin-standard: 1.5em;
+  --margin-small: 0.5em;
+  --margin-large: 2em;
+  
+  --border-color: #000;
+  --border-width: 1px;
+}

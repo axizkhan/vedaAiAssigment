@@ -1,69 +1,56 @@
 import { create } from 'zustand';
 import { Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents } from '@assessment-ai/types/src/socket.types';
-import { createSocketConnection } from '../services/socket.service';
+import { WebsocketMetrics } from './websocket.metrics';
 
 interface WebSocketState {
   socket: Socket<ServerToClientEvents, ClientToServerEvents> | null;
   isConnected: boolean;
   reconnecting: boolean;
+  reconnectAttempts: number;
   subscribedAssignments: Set<string>;
   lastEventAt: number | null;
+  lastSyncAt: number | null;
   
-  connect: (token: string) => void;
-  disconnect: () => void;
-  subscribeToAssignment: (assignmentId: string) => void;
-  unsubscribeFromAssignment: (assignmentId: string) => void;
+  setConnected: (socket: Socket<ServerToClientEvents, ClientToServerEvents>) => void;
+  setReconnecting: (attempts: number) => void;
+  subscribe: (assignmentId: string) => void;
+  unsubscribe: (assignmentId: string) => void;
   restoreSubscriptions: () => void;
-  updateLastEventTime: () => void;
+  setLastEvent: () => void;
+  reset: () => void;
 }
 
 export const useWebSocketStore = create<WebSocketState>((set, get) => ({
   socket: null,
   isConnected: false,
   reconnecting: false,
+  reconnectAttempts: 0,
   subscribedAssignments: new Set(),
   lastEventAt: null,
+  lastSyncAt: null,
 
-  connect: (token: string) => {
-    const { socket } = get();
-    if (socket?.connected) return;
-
-    const newSocket = createSocketConnection(token);
-
-    newSocket.on('connect', () => {
-      set({ isConnected: true, reconnecting: false });
-      get().restoreSubscriptions();
+  setConnected: (socket) => {
+    set({
+      socket,
+      isConnected: true,
+      reconnecting: false,
+      reconnectAttempts: 0,
     });
-
-    newSocket.on('disconnect', (reason) => {
-      set({ isConnected: false });
-      if (reason === 'io server disconnect') {
-        // Disconnected by server, won't auto-reconnect
-        newSocket.connect();
-      }
-    });
-
-    newSocket.io.on('reconnect_attempt', () => {
-      set({ reconnecting: true });
-    });
-
-    newSocket.connect();
-    set({ socket: newSocket });
+    WebsocketMetrics.trackConnection('connected');
   },
 
-  disconnect: () => {
-    const { socket } = get();
-    if (socket) {
-      socket.disconnect();
-      set({ socket: null, isConnected: false, reconnecting: false, subscribedAssignments: new Set() });
-    }
+  setReconnecting: (attempts) => {
+    set({
+      isConnected: false,
+      reconnecting: true,
+      reconnectAttempts: attempts,
+    });
+    WebsocketMetrics.trackReconnectAttempt(attempts);
   },
 
-  subscribeToAssignment: (assignmentId: string) => {
+  subscribe: (assignmentId) => {
     const { socket, subscribedAssignments } = get();
-    
-    // Add to Set to track even if disconnected
     const newSubs = new Set(subscribedAssignments);
     newSubs.add(assignmentId);
     set({ subscribedAssignments: newSubs });
@@ -73,9 +60,8 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
     }
   },
 
-  unsubscribeFromAssignment: (assignmentId: string) => {
+  unsubscribe: (assignmentId) => {
     const { socket, subscribedAssignments } = get();
-    
     const newSubs = new Set(subscribedAssignments);
     newSubs.delete(assignmentId);
     set({ subscribedAssignments: newSubs });
@@ -87,14 +73,32 @@ export const useWebSocketStore = create<WebSocketState>((set, get) => ({
 
   restoreSubscriptions: () => {
     const { socket, subscribedAssignments } = get();
-    if (socket?.connected) {
+    if (socket?.connected && subscribedAssignments.size > 0) {
       subscribedAssignments.forEach((assignmentId) => {
         socket.emit('assignment:join', { assignmentId });
+        WebsocketMetrics.trackSubscriptionRestore(assignmentId);
       });
     }
   },
 
-  updateLastEventTime: () => {
+  setLastEvent: () => {
     set({ lastEventAt: Date.now() });
+  },
+
+  reset: () => {
+    const { socket } = get();
+    if (socket) {
+      socket.disconnect();
+    }
+    set({
+      socket: null,
+      isConnected: false,
+      reconnecting: false,
+      reconnectAttempts: 0,
+      subscribedAssignments: new Set(),
+      lastEventAt: null,
+      lastSyncAt: null,
+    });
+    WebsocketMetrics.trackConnection('disconnected', { reason: 'store_reset' });
   }
 }));

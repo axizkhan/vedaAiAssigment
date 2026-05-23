@@ -1,0 +1,20 @@
+<div class="question avoid-page-break">
+  <div class="flex-row question-text">
+    <div><strong>Q{{number}}.</strong> {{{htmlContent}}}</div>
+    <div class="marks text-right">[{{marks}} Marks]</div>
+  </div>
+  
+  {{#if difficulty}}
+  <div class="margin-small">
+    <span class="difficulty-badge difficulty-{{difficulty}}">{{difficulty}}</span>
+  </div>
+  {{/if}}
+
+  {{#if options}}
+  <ol class="options" type="a">
+    {{#each options}}
+      <li class="option"><strong>{{this.label}}.</strong> {{{this.text}}}</li>
+    {{/each}}
+  </ol>
+  {{/if}}
+</div>

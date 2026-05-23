@@ -1,0 +1,12 @@
+<div class="paper-header avoid-page-break">
+  <h1>{{institutionName}}</h1>
+  <h2>{{examTitle}}</h2>
+  <div class="flex-row">
+    <span><strong>Assignment:</strong> {{assignmentId}} (Version {{version}})</span>
+    {{#if date}}<span><strong>Date:</strong> {{date}}</span>{{/if}}
+  </div>
+  <div class="flex-row">
+    {{#if duration}}<span><strong>Duration:</strong> {{duration}}</span>{{/if}}
+    {{#if totalMarks}}<span><strong>Total Marks:</strong> {{totalMarks}}</span>{{/if}}
+  </div>
+</div>

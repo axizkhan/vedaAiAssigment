@@ -1,1 +1,8 @@
-export const constants = {};
+export const PDF_CONSTANTS = {
+  QUEUE_NAME: 'pdf-generation',
+  JOB_ATTEMPTS: 2,
+  JOB_BACKOFF_DELAY: 3000,
+  SIGNED_URL_EXPIRY_SECONDS: 3600, // 1 hour
+  WORKER_CONCURRENCY: 1,
+  WORKER_LOCK_DURATION: 120000,
+} as const;

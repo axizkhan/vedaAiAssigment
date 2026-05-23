@@ -1,0 +1,39 @@
+@page {
+  size: A4;
+  margin: 20mm 25mm;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  color: #000;
+}
+
+.paper-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.paper-header {
+  text-align: center;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: var(--margin-standard);
+  margin-bottom: var(--margin-large);
+}
+
+.paper-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+  font-size: var(--font-size-small);
+  padding-top: var(--margin-small);
+  border-top: 1px solid var(--border-color);
+}
+
+.section {
+  margin-bottom: var(--margin-large);
+}

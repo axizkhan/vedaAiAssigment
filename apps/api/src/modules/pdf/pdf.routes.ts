@@ -1,11 +1,9 @@
 import { Router } from 'express';
-import { authenticate } from '../../middleware/auth.middleware';
-import { asyncHandler } from '../../middleware/error.middleware';
-import { generatePdfController, getPdfController } from './pdf.controller';
+import { PdfController } from './pdf.controller';
 
-export const pdfRouter = Router();
+const router = Router();
 
-pdfRouter.post('/:assignmentId/generate', authenticate, asyncHandler(generatePdfController));
-pdfRouter.get('/:assignmentId', authenticate, asyncHandler(getPdfController));
+router.get('/:assignmentId', PdfController.generateOrGetPdf);
+router.get('/:assignmentId/status', PdfController.getPdfStatus);
 
-export default pdfRouter;
+export default router;
