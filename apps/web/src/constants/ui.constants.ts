@@ -1,0 +1,9 @@
+export const UI_CONSTANTS = {
+  ANIMATION_DURATION: {
+    FAST: 0.15,
+    NORMAL: 0.25,
+    SLOW: 0.35,
+  },
+  TOAST_DURATION: 5000,
+  DEBOUNCE_DELAY: 300,
+};

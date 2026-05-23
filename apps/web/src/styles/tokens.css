@@ -1,0 +1,81 @@
+/* ============================================================
+   DESIGN TOKEN SYSTEM — Single Source of Truth
+   ============================================================
+   All colors, radii, and shadows are defined here.
+   Components MUST consume these via Tailwind utilities or
+   var(--token) references. Never hardcode values elsewhere.
+   ============================================================ */
+
+/* ── Light Theme (Default) ─────────────────────────────────── */
+:root {
+  /* Surface */
+  --background: #f5f5f5;
+  --surface: #ffffff;
+  --surface-secondary: #f7f7f7;
+
+  /* Foreground */
+  --foreground: #111111;
+  --foreground-muted: #666666;
+
+  /* Brand */
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --accent: #ff6b35;
+  --accent-soft: #ffe6dc;
+
+  /* Border & Input */
+  --border: #e5e5e5;
+  --input: #f1f1f1;
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.12);
+
+  /* Focus ring */
+  --ring: #ff6b35;
+  --ring-offset: #ffffff;
+}
+
+/* ── Dark Theme ────────────────────────────────────────────── */
+.dark {
+  --background: #0f1115;
+  --surface: #171a21;
+  --surface-secondary: #1d212b;
+
+  --foreground: #ffffff;
+  --foreground-muted: #9ca3af;
+
+  --primary: #ffffff;
+  --primary-foreground: #111111;
+
+  --accent: #ff7b4d;
+  --accent-soft: #3a241d;
+
+  --border: #2b2f39;
+  --input: #1d212b;
+
+  /* Semantic colors stay consistent for recognition */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* Shadows are subtler in dark mode to avoid glow artifacts */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
+
+  --ring: #ff7b4d;
+  --ring-offset: #0f1115;
+}

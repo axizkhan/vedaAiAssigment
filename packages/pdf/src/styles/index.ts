@@ -32,7 +32,7 @@ export const loadPrintStyles = (): string => {
       }
     } catch (err) {
       if (process.env.NODE_ENV !== 'production') {
-        console.warn(\`[PDF Styles] Failed to load \${file}: \${err}\`);
+        console.warn(`\n[PDF Styles] Failed to load \${file}: \${err}\n`);
       }
     }
   }

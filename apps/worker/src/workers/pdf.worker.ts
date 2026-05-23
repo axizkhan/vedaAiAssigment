@@ -3,12 +3,8 @@ import { PdfTelemetry } from './pdf.telemetry';
 import { PdfMetrics } from './pdf.metrics';
 import { PdfRecovery } from './pdf.recovery';
 import { PdfProgress } from './pdf.progress';
-import { renderPdfFromHtml } from '@assessment-ai/pdf/src/renderer/puppeteer.renderer';
-// Assume mocked templates and styles for this architecture
-// import template from '@assessment-ai/pdf/src/templates/exam-paper.hbs';
+import { executeRenderPipeline } from './pdf.render';
 
-// Mock DB, storage, and websocket integrations since they live in the api package normally
-// In a real monorepo, worker would share access or call internal APIs
 const mockUploadToS3 = async (buffer: Buffer, path: string) => path;
 const mockEmitPdfReady = async (payload: any) => {};
 
@@ -27,8 +23,8 @@ export const processPdfJob = async (job: any) => {
 
     await PdfProgress.updateStatus(job.id, 'rendering', 50);
 
-    // Render using shared package
-    const pdfBuffer = await renderPdfFromHtml(mockHtml);
+    // Render using robust new pipeline with timeout
+    const pdfBuffer = await executeRenderPipeline(mockHtml, assignmentId, version);
     
     await PdfProgress.updateStatus(job.id, 'uploading', 80);
 
@@ -37,10 +33,9 @@ export const processPdfJob = async (job: any) => {
 
     PdfMetrics.recordPdfUpload(pdfBuffer.length);
     const durationMs = Date.now() - startMs;
-    PdfMetrics.recordRenderDuration(durationMs);
+    PdfMetrics.recordDuration('render_duration_ms', durationMs);
 
     // Stub: Persist metadata back to version model
-    // await VersionModel.updateOne({ assignmentId, version }, { pdfS3Key: s3Path, pdfGeneratedAt: new Date(), pdfGenerationDurationMs: durationMs })
 
     await mockEmitPdfReady({
       assignmentId,
@@ -53,7 +48,7 @@ export const processPdfJob = async (job: any) => {
     await PdfProgress.updateStatus(job.id, 'completed', 100);
     return { success: true, durationMs };
 
-  } catch (error) {
+  } catch (error: any) {
     await PdfRecovery.handleTerminalFailure(payload, error);
     throw error;
   }

@@ -1,0 +1,31 @@
+.transition-base {
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-standard);
+}
+
+.transition-fast {
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-decelerate);
+}
+
+.transition-slow {
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-standard);
+}
+
+.transition-bounce {
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-bounce-soft);
+}
+
+.transition-transform-opacity {
+  transition-property: transform, opacity;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-standard);
+}
+
+.transition-colors-shadow {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-standard);
+}

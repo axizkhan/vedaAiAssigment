@@ -1,4 +1,4 @@
-export { renderPdfFromHtml } from './renderer/puppeteer.renderer';
+export * from './renderer';
 export { sanitizeTemplateData } from './utils/template-sanitizer';
 export { applySafePageBreaks, preventQuestionSplitting } from './utils/page-breaks';
 export { generatePdfMetadata } from './utils/pdf-metadata';

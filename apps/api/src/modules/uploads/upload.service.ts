@@ -1,11 +1,18 @@
 import { logger } from "@assessment-ai/logger";
 import { AssignmentRepository } from "@assessment-ai/database";
 import {
-  extractTextFromFile,
+  extractText,
+  sanitizeExtractedText,
   estimateTokens,
+  truncateContent,
+  validateExtractedContext,
+  detectPromptInjection,
 } from "@assessment-ai/ai";
-import { streamObject } from "@assessment-ai/object-storage";
-import { sanitizeExtractedText } from "./upload.security";
+import {
+  uploadFile,
+  S3ClientManager,
+  type S3Config,
+} from "@assessment-ai/object-storage";
 import { apiEnv } from "@assessment-ai/config";
 
 import { UploadAudit } from "./upload.audit";
@@ -33,9 +40,9 @@ class UploadServiceClass {
   /**
    * Initialize S3 client (call once at startup)
    */
-  static initializeStorage(): void {
+  static initializeStorage(config: S3Config): void {
     if (!this.initialized) {
-      // The new S3ClientManager inside the package auto-initializes using env vars.
+      S3ClientManager.initialize(config);
       this.initialized = true;
       logger.info("Upload service initialized with S3 storage");
     }
@@ -64,15 +71,16 @@ class UploadServiceClass {
         traceId,
       );
 
-      // 2. Extract key from multer-s3
-      const fileKey = (file as any).key;
-      if (!fileKey) {
-        throw new FileUploadStorageError("File key missing from multer-s3");
-      }
+      // 2. Upload file to S3/MinIO
+      const fileKey = await this.uploadFileToStorage(
+        assignmentId,
+        file,
+        traceId,
+      );
 
-      // 3. Extract text from file directly from S3 stream
+      // 3. Extract text from file
       const { extractedText, pageCount, extractionDurationMs } =
-        await this.extractAndProcessText(assignmentId, fileKey, file.mimetype, traceId);
+        await this.extractAndProcessText(assignmentId, file, traceId);
 
       // 4. Estimate tokens
       const tokenCount = estimateTokens(extractedText);
@@ -139,54 +147,120 @@ class UploadServiceClass {
   }
 
   /**
-   * (Removed manual upload since multer-s3 handles it)
+   * Upload file to S3/MinIO storage
    */
+  private async uploadFileToStorage(
+    assignmentId: string,
+    file: Express.Multer.File,
+    traceId?: string,
+  ): Promise<string> {
+    try {
+      const fileKey = await uploadFile({
+        assignmentId,
+        filename: file.originalname,
+        buffer: file.buffer,
+        contentType: file.mimetype,
+        metadata: {
+          "original-filename": file.originalname,
+          "file-size": String(file.size),
+        },
+        traceId,
+      });
+
+      return fileKey;
+    } catch (error) {
+      logger.error(
+        { error, assignmentId, traceId },
+        "File upload to storage failed",
+      );
+      UploadAudit.storageFailed(
+        assignmentId,
+        "",
+        "Failed to upload file to S3/MinIO",
+        traceId,
+      );
+      throw new FileUploadStorageError();
+    }
+  }
 
   /**
    * Extract text from file and process it
    */
   private async extractAndProcessText(
     assignmentId: string,
-    fileKey: string,
-    mimetype: string,
+    file: Express.Multer.File,
     traceId?: string
   ): Promise<{
     extractedText: string;
     pageCount?: number;
     extractionDurationMs: number;
   }> {
-    UploadAudit.extractionStarted(assignmentId, mimetype, traceId);
-    const startTime = Date.now();
+    UploadAudit.extractionStarted(assignmentId, file.mimetype, traceId);
+      assignmentId || "unknown",
+      file.mimetype,
+      traceId,
+    );
 
     try {
-      // Stream file back from S3
-      const stream = await streamObject(fileKey, traceId);
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      const buffer = Buffer.concat(chunks);
+      // Extract text based on MIME type
+      const extractionResult = await extractText(
+        file.buffer,
+        file.mimetype,
+        traceId,
+      );
 
-      let extractedText = "";
-      
-      // Extraction delegated to AI package (which handles the 15s timeout and memory safety)
-      const extractionResult = await extractTextFromFile(buffer, mimetype, traceId);
-      extractedText = extractionResult.text;
-      const sanitizationDurationMs = extractionResult.metrics.sanitizationDurationMs;
-      pageCount = extractionResult.metadata.pageCount || 0;
+      // Validate extracted text is not empty
+      validateExtractedTextNotEmpty(extractionResult.text, traceId);
+
+      // Sanitize extracted text
+      const sanitizationResult = sanitizeExtractedText(
+        extractionResult.text,
+        traceId,
+      );
+      let sanitizedText = sanitizationResult.text;
+
+      // Check for prompt injection
+      if (sanitizationResult.suspiciousPhrases.length > 0) {
+        const injectionResult = detectPromptInjection(
+          sanitizationResult.text,
+          traceId,
+        );
+        if (injectionResult.isDetected) {
+          UploadAudit.injectionDetected(
+            assignmentId,
+            injectionResult.riskScore,
+            injectionResult.detectedPatterns,
+            traceId,
+          );
+        }
+      }
+
+      // Truncate to max length
+      const truncationResult = truncateContent(
+        sanitizedText,
+        undefined,
+        traceId,
+      );
+      sanitizedText = truncationResult.text;
+
+      // Validate final content
+      const validationResult = validateExtractedContext(sanitizedText, traceId);
+      if (!validationResult.isValid) {
+        throw new TextExtractionError(validationResult.errors.join("; "));
+      }
 
       UploadAudit.extractionCompleted(
         assignmentId,
-        0,
-        extractedText.length,
-        estimateTokens(extractedText),
+        extractionResult.pageCount,
+        sanitizedText.length,
+        estimateTokens(sanitizedText),
         traceId,
       );
 
       return {
-        extractedText: extractedText,
-        pageCount: pageCount,
-        extractionDurationMs: extractionResult.metrics.extractionDurationMs + sanitizationDurationMs,
+        extractedText: sanitizedText,
+        pageCount: extractionResult.pageCount,
+        extractionDurationMs: extractionResult.extractionDurationMs,
       };
     } catch (error) {
       logger.error({ error, traceId }, "Text extraction and processing failed");

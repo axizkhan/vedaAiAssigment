@@ -1,0 +1,81 @@
+/* ============================================================
+   ANIMATION PRIMITIVES — GPU-safe, accessible motion
+   ============================================================ */
+
+/* ── Keyframes ──────────────────────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Utility classes ────────────────────────────────────────── */
+.animate-fade-in {
+  animation: fade-in var(--duration-normal) var(--ease-decelerate) forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in var(--duration-normal) var(--ease-decelerate) forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up var(--duration-page) var(--ease-decelerate) forwards;
+}
+
+/* ── Interactive micro-animations ───────────────────────────── */
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-standard), box-shadow var(--duration-fast) var(--ease-standard);
+  will-change: transform;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.press-down {
+  transition: transform var(--duration-fast) var(--ease-standard);
+  will-change: transform;
+}
+
+.press-down:active {
+  transform: scale(0.97);
+}
+
+/* ── Reduced Motion — Accessibility ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .hover-lift:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .press-down:active {
+    transform: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
