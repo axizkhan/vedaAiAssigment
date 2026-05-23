@@ -1,45 +1,16 @@
 import { io, Socket } from 'socket.io-client';
-import { tokenManager } from './token.manager';
+import { ClientToServerEvents, ServerToClientEvents } from '@assessment-ai/types/src/socket.types';
 
-class SocketService {
-  private socket: Socket | null = null;
+export const createSocketConnection = (token: string): Socket<ServerToClientEvents, ClientToServerEvents> => {
+  const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
 
-  connect() {
-    if (this.socket?.connected) return;
-
-    const token = tokenManager.getAccessToken();
-    if (!token) return;
-
-    const baseURL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || '';
-
-    this.socket = io(baseURL, {
-      auth: { token },
-      transports: ['websocket'],
-      autoConnect: true
-    });
-  }
-
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-  }
-
-  syncToken(token: string) {
-    if (this.socket) {
-      // Update the auth payload for future reconnects natively
-      this.socket.auth = { token };
-      // Force a disconnect and reconnect to re-authenticate with the new token
-      this.socket.disconnect().connect();
-    } else {
-      this.connect();
-    }
-  }
-
-  getSocket(): Socket | null {
-    return this.socket;
-  }
-}
-
-export const socketService = new SocketService();
+  return io(socketUrl, {
+    auth: {
+      token
+    },
+    reconnectionAttempts: 10,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
+    autoConnect: false // We control the lifecycle manually
+  });
+};

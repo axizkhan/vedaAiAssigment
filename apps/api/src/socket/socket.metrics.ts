@@ -1,13 +1,16 @@
 import { logger } from '@assessment-ai/logger';
 
 export const socketMetrics = {
-  trackConnection: (userId: string, totalActive: number) => {
-    logger.info('Socket metrics: connection', { userId, totalActive });
+  trackConnection: () => {
+    logger.info('Socket connected', { event: 'socket_connection_established' });
   },
-  trackAuthFailure: (reason: string) => {
-    logger.warn('Socket metrics: auth failure', { reason });
+  trackDisconnection: (reason: string) => {
+    logger.info('Socket disconnected', { event: 'socket_disconnected', reason });
   },
-  trackRoomJoin: (room: string, userId: string) => {
-    logger.info('Socket metrics: room join', { room, userId });
+  trackAuthFailure: (error: string) => {
+    logger.warn('Socket authentication failed', { event: 'socket_auth_failure', error });
+  },
+  trackEventEmitted: (eventName: string, room: string) => {
+    logger.debug('Socket event emitted', { event: 'socket_event_emitted', eventName, room });
   }
 };

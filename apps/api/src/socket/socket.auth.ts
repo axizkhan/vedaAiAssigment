@@ -1,55 +1,55 @@
-import crypto from 'crypto';
-import { authTokens } from '../modules/auth/auth.tokens';
-import { authSession } from '../modules/auth/auth.session';
-import { logger } from '@assessment-ai/logger';
-import { SocketError, SocketErrorCode } from './socket.errors';
-import { AuthenticatedSocket } from './socket.types';
+import * as jwt from 'jsonwebtoken';
+import { AppSocket } from './socket.types';
+import { socketLogger } from './socket.logger';
+import { socketMetrics } from './socket.metrics';
+import { SocketAuthError } from './socket.errors';
 
-export const authenticateSocket = async (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
-  const traceId = crypto.randomUUID();
-  const token = socket.handshake.auth.token;
-
-  if (!token) {
-    return next(new SocketError(SocketErrorCode.SOCKET_UNAUTHORIZED));
-  }
-
+export const socketAuthMiddleware = (socket: AppSocket, next: (err?: Error) => void) => {
   try {
-    const decoded = authTokens.verifyAccessToken(token);
+    const token = socket.handshake.auth.token || socket.handshake.headers['authorization']?.replace('Bearer ', '');
 
+    if (!token) {
+      throw new SocketAuthError('Authentication token missing');
+    }
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret';
+    
+    // Verify access token
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: string; type?: string; role?: string; sessionId?: string };
+
+    // Prevent refresh tokens from being used for socket connections
     if (decoded.type === 'refresh') {
-      logger.error('Refresh token misused in websocket auth', { userId: decoded.sub, traceId });
-      return next(new SocketError(SocketErrorCode.SOCKET_INVALID_TOKEN));
+      throw new SocketAuthError('Refresh tokens are not allowed for WebSocket authentication');
     }
 
-    if (!decoded.type || decoded.type !== 'access' || !decoded.sessionId) {
-      return next(new SocketError(SocketErrorCode.SOCKET_INVALID_TOKEN));
-    }
-
-    const isValidSession = await authSession.validateSession(decoded.sub, decoded.sessionId);
-    if (!isValidSession) {
-      logger.warn('Revoked session websocket attempt', { userId: decoded.sub, sessionId: decoded.sessionId, traceId });
-      return next(new SocketError(SocketErrorCode.SOCKET_SESSION_REVOKED));
-    }
-
-    socket.data.user = {
-      id: decoded.sub,
+    // Attach to socket data for downstream use
+    socket.data = {
+      userId: decoded.id,
       role: decoded.role,
-      email: decoded.email,
-      sessionId: decoded.sessionId
-    };
-
-    socket.data.authContext = {
-      traceId,
       sessionId: decoded.sessionId,
-      userId: decoded.sub,
-      connectedAt: new Date(),
-      ipAddress: socket.handshake.address
+      traceId: \`socket_conn_\${Date.now()}_\${socket.id}\`
     };
 
-    logger.info('Websocket authenticated', { userId: decoded.sub, sessionId: decoded.sessionId, traceId });
+    socketLogger.info('Socket authenticated successfully', {
+      event: 'socket_connected',
+      socketId: socket.id,
+      userId: socket.data.userId,
+      traceId: socket.data.traceId,
+      timestamp: new Date().toISOString()
+    });
+
+    socketMetrics.trackConnection();
     next();
+
   } catch (error: any) {
-    const code = error.name === 'TokenExpiredError' ? SocketErrorCode.SOCKET_TOKEN_EXPIRED : SocketErrorCode.SOCKET_INVALID_TOKEN;
-    return next(new SocketError(code));
+    socketMetrics.trackAuthFailure(error.message);
+    socketLogger.warn('Socket authentication rejected', {
+      event: 'auth_failed',
+      socketId: socket.id,
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+    
+    next(new Error('Unauthorized')); // Socket.IO uses standard Error objects for middleware rejections
   }
 };

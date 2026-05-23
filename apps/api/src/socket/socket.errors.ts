@@ -1,17 +1,32 @@
-export enum SocketErrorCode {
-  SOCKET_UNAUTHORIZED = 'SOCKET_UNAUTHORIZED',
-  SOCKET_TOKEN_EXPIRED = 'SOCKET_TOKEN_EXPIRED',
-  SOCKET_INVALID_TOKEN = 'SOCKET_INVALID_TOKEN',
-  SOCKET_SESSION_REVOKED = 'SOCKET_SESSION_REVOKED',
-  SOCKET_FORBIDDEN = 'SOCKET_FORBIDDEN'
+export class SocketError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = 'SocketError';
+  }
 }
 
-export class SocketError extends Error {
-  public code: SocketErrorCode;
+export class SocketAuthError extends SocketError {
+  constructor(message: string) {
+    super(message, 'UNAUTHORIZED');
+  }
+}
 
-  constructor(code: SocketErrorCode) {
-    super(code);
-    this.name = 'SocketError';
-    this.code = code;
+export class SocketPermissionError extends SocketError {
+  constructor(message: string) {
+    // We intentionally mask permissions and existence behind FORBIDDEN 
+    // to prevent room enumeration attacks.
+    super(message, 'FORBIDDEN');
+  }
+}
+
+export class SocketRoomError extends SocketError {
+  constructor(message: string) {
+    super(message, 'FORBIDDEN');
+  }
+}
+
+export class SocketValidationError extends SocketError {
+  constructor(message: string) {
+    super(message, 'BAD_REQUEST');
   }
 }
